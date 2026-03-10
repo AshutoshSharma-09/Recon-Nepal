@@ -1,0 +1,83 @@
+steps:
+  # 1. Build Backend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend:$COMMIT_SHA'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend:latest'
+      - './backend'
+    id: 'build-backend'
+
+  # 2. Build Frontend Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_URL=$_FRONTEND_API_URL'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend:$COMMIT_SHA'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend:latest'
+      - './frontend'
+    id: 'build-frontend'
+    waitFor: ['-']
+
+  # 3. Build Nginx Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/nginx:$COMMIT_SHA'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/nginx:latest'
+      - './nginx'
+    id: 'build-nginx'
+    waitFor: ['-']
+
+  # 4. Push all Images to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend', '--all-tags']
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend', '--all-tags']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/nginx', '--all-tags']
+    id: 'push-nginx'
+    waitFor: ['build-nginx']
+
+  # --- Deployment Step (Example for Compute Engine via SSH) ---
+  # If you are deploying to a VM, you might uncomment this and configure it:
+  # - name: 'gcr.io/cloud-builders/gcloud'
+  #   entrypoint: 'bash'
+  #   args:
+  #     - '-c'
+  #     - |
+  #       gcloud compute ssh $_VM_NAME --zone $_ZONE --command "
+  #         cd /path/to/project &&
+  #         docker-compose pull &&
+  #         docker-compose up -d
+  #       "
+  #   id: 'deploy-vm'
+  #   waitFor: ['push-backend', 'push-frontend', 'push-nginx']
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/nginx:$COMMIT_SHA'
+
+substitutions:
+  _REGION: 'us-central1'
+  _REPO_NAME: 'pms-repo' # Replace with your Artifact Registry repository name
+  _FRONTEND_API_URL: '/api' # Change if your frontend needs a different API URL at build time
+  # _VM_NAME: 'pms-instance'
+  # _ZONE: 'us-central1-a'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

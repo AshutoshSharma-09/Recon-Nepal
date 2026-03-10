@@ -1,0 +1,33 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js build output
+.next/
+out/
+build/
+
+# Config files (maybe, but Next needs them sometimes - ignoring local env though)
+.env*.local
+.env
+
+# IDE and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Test reports
+coverage/
+
+# Next.js specific
+.vercel/
+*.tsbuildinfo
