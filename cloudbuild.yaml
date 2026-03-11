@@ -1,4 +1,4 @@
-#Start build
+#Start build here
 steps:
   # 1. Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
