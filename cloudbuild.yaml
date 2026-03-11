@@ -1,6 +1,5 @@
-#start
 steps:
-  # Build the unified container image
+  # 1. Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -11,17 +10,38 @@ steps:
       - '.'
     id: 'build-image'
 
-  # Push the image (SHORT SHA tag)
+  # 2. Push image (short SHA tag)
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'us-central1-docker.pkg.dev/recon-489807/recon-repo/recon-pms:$SHORT_SHA']
     id: 'push-sha'
     waitFor: ['build-image']
 
-  # Push the image (latest tag)
+  # 3. Push image (latest tag)
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'us-central1-docker.pkg.dev/recon-489807/recon-repo/recon-pms:latest']
     id: 'push-latest'
     waitFor: ['build-image']
+
+  # 4. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'recon-nepal1'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/recon-489807/recon-repo/recon-pms:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '8080'
+      - '--add-cloudsql-instances'
+      - 'recon-489807:us-central1:recon'
+      - '--quiet'
+    id: 'deploy-cloud-run'
+    waitFor: ['push-sha', 'push-latest']
 
 images:
   - 'us-central1-docker.pkg.dev/recon-489807/recon-repo/recon-pms:$SHORT_SHA'
@@ -31,4 +51,4 @@ options:
   logging: CLOUD_LOGGING_ONLY
   machineType: 'E2_HIGHCPU_8'
 
-timeout: '1200s'
+timeout: '1800s'
